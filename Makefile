@@ -43,7 +43,7 @@ SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include \
 	../skia
-#ROMFS	:=	romfs
+ROMFS	:=	romfs
 
 #---------------------------------------------------------------------------------
 # options for code generation
@@ -63,7 +63,8 @@ LDFLAGS	=	-specs=$(DEVKITPRO)/libnx/switch.specs -g $(ARCH) -Wl,--gc-sections,-M
 
 LIBS	:=  -lskia -lharfbuzz -licu -lparticles \
 	-lpathkit -lpng -lsksg -lskshaper -lwebp \
-	-lzlib -lz -lexpat -lfreetype -lturbojpeg \
+	-lexpat -lfreetype -lturbojpeg \
+	-lzlib -lz -lbz2 \
 	-lglad -lEGL -lglapi -ldrm_nouveau -lnx 
 
 #---------------------------------------------------------------------------------

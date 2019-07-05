@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <dirent.h>
 
 // Include the main libnx system header, for Switch development
 #include <switch.h>
@@ -12,6 +13,7 @@
 
 #include "include/core/SkSurface.h"
 #include "include/core/SkCanvas.h"
+#include "include/core/SkFont.h"
 #include "include/gpu/GrContext.h"
 #include "include/gpu/gl/GrGLInterface.h"
 
@@ -22,6 +24,8 @@
 
 int nx_link_sock = -1;
 
+sk_sp<SkTypeface> dm_sans_regular;
+
 void draw(int x, int y, SkCanvas& canvas) {
     SkPaint paint;
     paint.setAntiAlias(true);
@@ -31,6 +35,11 @@ void draw(int x, int y, SkCanvas& canvas) {
     canvas.drawCircle(x + 86, y + 86, 20, paint);
     canvas.drawCircle(x + 160, y + 76, 20, paint);
     canvas.drawCircle(x + 140, y + 150, 35, paint);
+
+    paint.setColor(SK_ColorRED);
+
+    SkFont font(dm_sans_regular, 36);
+    canvas.drawString("Hello World!", x + 100, y + 50, font, paint);
 }
 
 static EGLDisplay s_display;
@@ -139,27 +148,24 @@ extern "C" void userAppInit(void)
 {
     socketInitializeDefault();
     nx_link_sock = nxlinkStdio();
+    romfsInit();
 }
 
 extern "C" void userAppExit(void)
 {
     close(nx_link_sock);
     socketExit();
+    romfsExit();
 }
 
 // Main program entrypoint
 int main(int argc, char* argv[])
 {
-    // Other initialization goes here. As a demonstration, we print hello world.
-    printf("Hello World!!\n");
-
     if (!initEgl(nwindowGetDefault()))
         return EXIT_FAILURE;
 
-    LTRACEF("GrGLMakeNativeInterface");
     auto interface = GrGLMakeNativeInterface();
 
-    LTRACEF("GrContext::MakeGL");
     auto ctx = GrContext::MakeGL();
 
     GrGLint buffer;
@@ -175,6 +181,14 @@ int main(int argc, char* argv[])
     auto surface = SkSurface::MakeFromBackendRenderTarget(ctx.get(), target,
             kBottomLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType,
             nullptr, &props);
+
+    dm_sans_regular = SkTypeface::MakeFromFile("romfs:/DMSans-Regular.ttf", 0);
+
+    if(dm_sans_regular.get() == nullptr)
+    {
+        LTRACEF("font not found...\n");
+        dm_sans_regular = SkTypeface::MakeDefault();
+    }
 
     SkCanvas* canvas = surface->getCanvas();
 
