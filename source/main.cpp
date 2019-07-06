@@ -26,23 +26,8 @@
 
 int nx_link_sock = -1;
 
+sk_sp<SkTypeface> font_standard;
 sk_sp<SkTypeface> dm_sans_regular;
-
-void draw(int x, int y, SkCanvas& canvas) {
-    SkPaint paint;
-    paint.setAntiAlias(true);
-    paint.setColor(SK_ColorBLUE);
-    canvas.drawCircle(x + 128, y + 128, 90, paint);
-    paint.setColor(SK_ColorWHITE);
-    canvas.drawCircle(x + 86, y + 86, 20, paint);
-    canvas.drawCircle(x + 160, y + 76, 20, paint);
-    canvas.drawCircle(x + 140, y + 150, 35, paint);
-
-    paint.setColor(SK_ColorRED);
-
-    SkFont font(dm_sans_regular, 36);
-    canvas.drawString("Hello World!", x + 100, y + 50, font, paint);
-}
 
 static EGLDisplay s_display;
 static EGLContext s_context;
@@ -148,13 +133,26 @@ static void deinitEgl()
 
 extern "C" void userAppInit(void)
 {
-    socketInitializeDefault();
+    Result res;
+
+    res = socketInitializeDefault();
+    if (R_FAILED(res))
+        fatalSimple(res);
+
     nx_link_sock = nxlinkStdio();
-    romfsInit();
+
+    res = romfsInit();
+    if (R_FAILED(res))
+        fatalSimple(res);
+
+    res = plInitialize();
+    if (R_FAILED(res))
+        fatalSimple(res);
 }
 
 extern "C" void userAppExit(void)
 {
+    plExit();
     close(nx_link_sock);
     socketExit();
     romfsExit();
@@ -187,7 +185,29 @@ void draw_star(SkCanvas* canvas) {
     SkPath path(star());
     canvas->drawPath(path, paint);
 }
+
+static void load_fonts(void)
+{
+    PlFontData font;
+    Result res = plGetSharedFontByType(&font, PlSharedFontType_Standard);
+
+    if(R_SUCCEEDED(res))
+    {
+        font_standard = SkTypeface::MakeFromData(SkData::MakeWithoutCopy(font.address, font.size), 0);
+    }
+
+    if(font_standard.get() == nullptr)
+    {
+        font_standard = SkTypeface::MakeDefault();
+    }
+
+    dm_sans_regular = SkTypeface::MakeFromFile("romfs:/DMSans-Regular.ttf", 0);
+    if(dm_sans_regular.get() == nullptr)
+    {
+        dm_sans_regular = SkTypeface::MakeDefault();
+    }
 }
+
 // Main program entrypoint
 int main(int argc, char* argv[])
 {
@@ -212,17 +232,9 @@ int main(int argc, char* argv[])
             kBottomLeft_GrSurfaceOrigin, kRGBA_8888_SkColorType,
             nullptr, &props);
 
-    dm_sans_regular = SkTypeface::MakeFromFile("romfs:/DMSans-Regular.ttf", 0);
-
-    if(dm_sans_regular.get() == nullptr)
-    {
-        LTRACEF("font not found...\n");
-        dm_sans_regular = SkTypeface::MakeDefault();
-    }
+    load_fonts();
 
     SkCanvas* canvas = surface->getCanvas();
-
-    int x = 0;
 
     // Main loop
     while (appletMainLoop())
@@ -240,15 +252,12 @@ int main(int argc, char* argv[])
         canvas->clear(SK_ColorBLACK);
         draw_star(canvas);
 
-        x += 10;
-        if(x > FB_WIDTH)
-        {
-            x = 0;
-        }
-        draw(x, 10, *canvas);
-        draw(x + 200, 10, *canvas);
+        SkPaint paint;
+        paint.setColor(SK_ColorRED);
+        paint.setAntiAlias(true);
 
-        draw(x, 210, *canvas);
+        canvas->drawString("Standard Font", 20, 300, SkFont(font_standard, 36), paint);
+        canvas->drawString("DM Sans Regular", 20, 340, SkFont(dm_sans_regular, 36), paint);
 
         canvas->flush();
         eglSwapBuffers(s_display, s_surface);
