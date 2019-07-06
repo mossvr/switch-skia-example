@@ -14,6 +14,8 @@
 #include "include/core/SkSurface.h"
 #include "include/core/SkCanvas.h"
 #include "include/core/SkFont.h"
+#include "include/effects/SkGradientShader.h"
+#include "include/effects/SkDiscretePathEffect.h"
 #include "include/gpu/GrContext.h"
 #include "include/gpu/gl/GrGLInterface.h"
 
@@ -158,6 +160,34 @@ extern "C" void userAppExit(void)
     romfsExit();
 }
 
+SkPath star() {
+    const SkScalar R = 60.0f, C = 128.0f;
+    SkPath path;
+    path.moveTo(C + R, C);
+    for (int i = 1; i < 15; ++i) {
+        SkScalar a = 0.44879895f * i;
+        SkScalar r = R + R * (i % 2);
+        path.lineTo(C + r * cos(a), C + r * sin(a));
+    }
+    return path;
+}
+
+void draw_star(SkCanvas* canvas) {
+    SkPaint paint;
+    paint.setPathEffect(SkDiscretePathEffect::Make(10.0f, 4.0f));
+        SkPoint points[2] = {
+        SkPoint::Make(0.0f, 0.0f),
+        SkPoint::Make(256.0f, 256.0f)
+    };
+    SkColor colors[2] = {SkColorSetRGB(66,133,244), SkColorSetRGB(15,157,88)};
+    paint.setShader(SkGradientShader::MakeLinear(
+                     points, colors, NULL, 2,
+                     SkTileMode::kClamp, 0, NULL));
+    paint.setAntiAlias(true);
+    SkPath path(star());
+    canvas->drawPath(path, paint);
+}
+}
 // Main program entrypoint
 int main(int argc, char* argv[])
 {
@@ -208,6 +238,7 @@ int main(int argc, char* argv[])
             break; // break in order to return to hbmenu
 
         canvas->clear(SK_ColorBLACK);
+        draw_star(canvas);
 
         x += 10;
         if(x > FB_WIDTH)
